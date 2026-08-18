@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>抽样算法测试</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+  <h1>动态平衡抽样算法测试</h1>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module">
+const { useState, useEffect } = React;
+
+// 辅助函数
+const getAge = (birthYear) => new Date().getFullYear() - birthYear;
+
+const getAgeGroup = (birthYear) => {
+  const age = getAge(birthYear);
+  if (age < 18) return 'under18';
+  if (age < 25) return '18-24';
+  if (age < 30) return '25-29';
+  if (age < 35) return '30-34';
+  if (age < 40) return '35-39';
+  if (age < 45) return '40-44';
+  return '45+';
+};
+
+const getCityTierLevel = (city) => {
+  const tier1 = ['北京', '上海', '广州', '深圳'];
+  const tier2 = ['成都', '杭州', '重庆', '武汉', '西安', '苏州', '天津', '南京', '长沙', '郑州', '东莞', '青岛', '沈阳', '宁波', '昆明'];
+  if (tier1.includes(city)) return 'tier1';
+  if (tier2.includes(city)) return 'tier2';
+  return 'tier3';
+};
+
+// 维度定义
+const DIMENSIONS = [
+  { key: 'gender', label: '性别', tags: [
+    { name: '男', value: '男' }, { name: '女', value: '女' }
+  ]},
+  { key: 'age_group', label: '年龄段', tags: [
+    { name: '18-24岁', value: '18-24' }, { name: '25-29岁', value: '25-29' },
+    { name: '30-34岁', value: '30-34' }, { name: '35-39岁', value: '35-39' },
+    { name: '40-44岁', value: '40-44' }, { name: '45+岁', value: '45+' }
+  ]},
+  { key: 'city_tier', label: '城市级别', tags: [
+    { name: '一线', value: 'tier1' }, { name: '二线', value: 'tier2' },
+    { name: '三线', value: 'tier3' }, { name: '四线', value: 'tier4' },
+    { name: '五线', value: 'tier5' }, { name: '其他', value: 'other' }
+  ]},
+  { key: 'education', label: '学历', tags: [
+    { name: '初中及以下', value: '初中及以下' }, { name: '高中/中专/技校', value: '高中/中专/技校' },
+    { name: '大学专科', value: '大学专科' }, { name: '大学本科', value: '大学本科' },
+    { name: '硕士及以上', value: '硕士及以上' }
+  ]},
+  { key: 'industry', label: '行业', tags: [
+    { name: '互联网/IT', value: '互联网/IT' }, { name: '金融', value: '金融' },
+    { name: '制造业', value: '制造业' }, { name: '教育', value: '教育' },
+    { name: '医疗', value: '医疗' }, { name: '房地产', value: '房地产' },
+    { name: '其他', value: '其他' }
+  ]},
+  { key: 'occupation', label: '职业', tags: [
+    { name: '白领', value: '白领' }, { name: '蓝领', value: '蓝领' },
+    { name: '学生', value: '学生' }, { name: '自由职业', value: '自由职业' },
+    { name: '退休', value: '退休' }, { name: '其他', value: '其他' }
+  ]},
+  { key: 'income', label: '收入', tags: [
+    { name: '5000以下', value: '5000以下' }, { name: '5000-10000', value: '5000-10000' },
+    { name: '10000-20000', value: '10000-20000' }, { name: '20000以上', value: '20000以上' }
+  ]},
+];
+
+// 维度键名映射（用于显示）
+const DIMENSION_LABELS = {
+  gender: '性别',
+  age_group: '年龄段',
+  city_tier: '城市级别',
+  education: '学历',
+  industry: '行业',
+  occupation: '职业',
+  income: '收入',
+};
+
+// 获取用户标签
+function getUserDimensionTags(user) {
+  return {
+    gender: user.gender,
+    age_group: getAgeGroup(user.birth_year),
+    city_tier: getCityTierLevel(user.city),
+    education: user.education,
+    industry: user.industry,
+    occupation: user.occupation,
+    income: user.income,
+  };
+}
+
+// 加权随机选择
+function weightedRandomSelect(weights) {
+  const entries = Object.entries(weights);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let random = Math.random() * total;
+  for (const [key, weight] of entries) {
+    random -= weight;
+    if (random <= 0) return key;
+  }
+  return entries[entries.length - 1][0];
+}
+
+// 创建模拟用户
+function createMockUsers(count) {
+  const users = [];
+
+  for (let i = 0; i < count; i++) {
+    users.push({
+      openid: `user_${i.toString().padStart(4, '0')}`,
+      gender: weightedRandomSelect({ '男': 50, '女': 50 }),
+      birth_year: 1970 + Math.floor(Math.random() * 40),
+      education: weightedRandomSelect({ '初中及以下': 15, '高中/中专/技校': 25, '大学专科': 25, '大学本科': 30, '硕士及以上': 5 }),
+      city: weightedRandomSelect({ '北京': 5, '上海': 5, '广州': 5, '深圳': 5, '成都': 10, '杭州': 8, '重庆': 10, '武汉': 8, '西安': 7, '其他': 37 }),
+      industry: weightedRandomSelect({ '互联网/IT': 25, '金融': 10, '制造业': 15, '教育': 12, '医疗': 8, '房地产': 8, '其他': 22 }),
+      occupation: weightedRandomSelect({ '白领': 45, '蓝领': 20, '学生': 10, '自由职业': 15, '退休': 5, '其他': 5 }),
+      income: weightedRandomSelect({ '5000以下': 20, '5000-10000': 35, '10000-20000': 30, '20000以上': 15 }),
+      registered_at: new Date().toISOString(),
+    });
+  }
+  return users;
+}
+
+// 动态平衡抽样算法
+function dynamicBalanceSampling(pool, targets, sampleSize, options = {}) {
+  const {
+    replaceRatio = 0.1,
+    candidateRatio = 0.2,
+    deviationThreshold = 0.05,
+    randomFactor = 0.1,
+  } = options;
+
+  const maxIterations = options.maxIterations || Math.min(200, Math.max(50, Math.floor(pool.length * 2)));
+
+  if (pool.length === 0) throw new Error('样本库为空');
+
+  const dimensions = [...new Set(targets.map(t => t.dimension))];
+
+  const targetMap = new Map();
+  for (const t of targets) {
+    if (!targetMap.has(t.dimension)) targetMap.set(t.dimension, new Map());
+    targetMap.get(t.dimension).set(t.tag, t);
+  }
+
+  console.log('[动态平衡抽样] 开始:', { poolSize: pool.length, sampleSize, maxIterations, deviationThreshold });
+
+  // 预过滤
+  const filteredPool = pool.filter(user => {
+    const tags = getUserDimensionTags(user);
+    for (const dim of dimensions) {
+      const tag = tags[dim];
+      if (!tag) return false;
+      const targetTags = targetMap.get(dim);
+      if (!targetTags) continue;
+      const target = targetTags.get(tag);
+      if (!target) return false;
+      if (Math.abs(target.targetPercent) < 0.001) return false;
+    }
+    return true;
+  });
+
+  if (filteredPool.length === 0) throw new Error('没有符合条件的用户');
+
+  const actualSampleSize = Math.min(sampleSize, filteredPool.length);
+
+  // 初始化
+  const shuffled = [...filteredPool].sort(() => Math.random() - 0.5);
+  const sampledPool = shuffled.slice(0, actualSampleSize);
+  const candidatePool = shuffled.slice(actualSampleSize);
+
+  console.log('[动态平衡抽样] 初始化:', { sampledPool: sampledPool.length, candidatePool: candidatePool.length });
+
+  let iterations = 0;
+  let replacedCount = 0;
+
+  // 辅助函数
+  function calculateDistribution(samples) {
+    const dist = new Map();
+    for (const dim of dimensions) dist.set(dim, new Map());
+    for (const user of samples) {
+      const tags = getUserDimensionTags(user);
+      for (const dim of dimensions) {
+        const tag = tags[dim];
+        if (tag) {
+          const tagMap = dist.get(dim);
+          tagMap.set(tag, (tagMap.get(tag) || 0) + 1);
+        }
+      }
+    }
+    return dist;
+  }
+
+  function calculateDimensionScore(user, distribution) {
+    const tags = getUserDimensionTags(user);
+    const scores = {};
+    for (const dim of dimensions) {
+      const tag = tags[dim];
+      const target = targetMap.get(dim)?.get(tag);
+      if (!target) { scores[dim] = 0; continue; }
+      const actual = distribution.get(dim)?.get(tag) || 0;
+      const actualPercent = sampledPool.length > 0 ? actual / sampledPool.length : 0;
+      const targetPercent = target.targetPercent / 100;
+      if (targetPercent <= 0) scores[dim] = 0;
+      else scores[dim] = 1.05 - (actualPercent / targetPercent);
+      scores[dim] = Math.max(-1, Math.min(2, scores[dim]));
+    }
+    return scores;
+  }
+
+  function calculateSampleValue(user, distribution, includeRandom) {
+    const dimScores = calculateDimensionScore(user, distribution);
+    for (const dim of dimensions) {
+      if (dimScores[dim] === 0) return -1000 + (includeRandom ? Math.random() * randomFactor : 0);
+    }
+    let product = 1.0;
+    for (const dim of dimensions) product *= (dimScores[dim] + 1.1);
+    const geoMean = Math.pow(product, 1 / dimensions.length);
+    const randomBonus = includeRandom ? (Math.random() * randomFactor) : 0;
+    return geoMean + randomBonus;
+  }
+
+  function calculateMaxDeviation(distribution) {
+    let maxDeviation = 0;
+    for (const dim of dimensions) {
+      const tagMap = distribution.get(dim);
+      for (const [tag, actual] of tagMap) {
+        const target = targetMap.get(dim)?.get(tag);
+        if (target && target.targetPercent > 0) {
+          const actualPercent = sampledPool.length > 0 ? (actual / sampledPool.length) * 100 : 0;
+          const deviation = Math.abs(actualPercent - target.targetPercent);
+          maxDeviation = Math.max(maxDeviation, deviation);
+        }
+      }
+    }
+    return maxDeviation;
+  }
+
+  // 迭代
+  for (let iter = 0; iter < maxIterations; iter++) {
+    iterations++;
+    const distribution = calculateDistribution(sampledPool);
+    const maxDev = calculateMaxDeviation(distribution);
+
+    if (maxDev < deviationThreshold * 100) {
+      console.log(`[动态平衡抽样] 迭代${iterations}: 最大偏差=${maxDev.toFixed(2)}% < ${(deviationThreshold * 100).toFixed(0)}%, 停止!`);
+      break;
+    }
+
+    const sampledWithValues = sampledPool.map(user => ({
+      user, value: calculateSampleValue(user, distribution, false),
+    }));
+    sampledWithValues.sort((a, b) => a.value - b.value);
+
+    const replaceCount = Math.max(1, Math.floor(actualSampleSize * replaceRatio));
+    const candidateToEvaluate = Math.max(10, Math.floor(candidatePool.length * candidateRatio));
+    const shuffledCandidates = [...candidatePool].sort(() => Math.random() - 0.5);
+    const candidatesForEval = shuffledCandidates.slice(0, candidateToEvaluate);
+
+    const candidatesWithValues = candidatesForEval.map(user => ({
+      user, value: calculateSampleValue(user, distribution, true),
+    }));
+    candidatesWithValues.sort((a, b) => b.value - a.value);
+
+    for (let i = 0; i < replaceCount && i < candidatesWithValues.length; i++) {
+      const toReplace = sampledWithValues[i];
+      const toAdd = candidatesWithValues[i];
+      if (!toReplace || !toAdd) continue;
+      if (toAdd.value <= toReplace.value) continue;
+
+      const sampledIdx = sampledPool.findIndex(u => u.openid === toReplace.user.openid);
+      if (sampledIdx !== -1) sampledPool[sampledIdx] = toAdd.user;
+
+      const candidateIdx = candidatePool.findIndex(u => u.openid === toAdd.user.openid);
+      if (candidateIdx !== -1) candidatePool.splice(candidateIdx, 1);
+      candidatePool.push(toReplace.user);
+      replacedCount++;
+    }
+  }
+
+  // 最终统计
+  const finalDistribution = calculateDistribution(sampledPool);
+  const finalMaxDeviation = calculateMaxDeviation(finalDistribution);
+
+  const statistics = [];
+  for (const dim of dimensions) {
+    const tagStats = [];
+    const targetTags = targetMap.get(dim);
+    if (targetTags) {
+      for (const [tag, target] of targetTags) {
+        const actual = finalDistribution.get(dim)?.get(tag) || 0;
+        const actualPercent = sampledPool.length > 0 ? (actual / sampledPool.length) * 100 : 0;
+        const deviation = Math.abs(actualPercent - target.targetPercent);
+        tagStats.push({ tag, targetCount: target.targetCount, actualCount: actual, targetPercent: target.targetPercent, actualPercent, deviation });
+      }
+    }
+    statistics.push({ dimension: dim, tags: tagStats });
+  }
+
+  const matchScore = Math.max(0, 1 - finalMaxDeviation / 100 / deviationThreshold);
+
+  return {
+    selectedUsers: sampledPool,
+    statistics,
+    matchScore,
+    iterations,
+    replacedCount,
+    actualSize: sampledPool.length,
+    maxDeviation: finalMaxDeviation,
+  };
+}
+
+// 计算在±5%偏差条件下，最多能抽多少人
+function calculateMaxSampleSize(pool, targets, selectedDimensions) {
+  if (pool.length === 0 || selectedDimensions.length === 0) return { maxPossible: 0, feasible: false };
+
+  const targetMap = new Map();
+  for (const t of targets) {
+    if (!targetMap.has(t.dimension)) targetMap.set(t.dimension, new Map());
+    targetMap.get(t.dimension).set(t.tag, t);
+  }
+
+  // 计算每个用户在各维度的标签
+  const userTags = pool.map((user, idx) => {
+    const tags = getUserDimensionTags(user);
+    return { idx, tags, user };
+  });
+
+  // 使用贪心策略：从大到小尝试，找到满足条件的最大数量
+  // 首先检查是否能用全部样本
+  let low = 1;
+  let high = pool.length;
+
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    // 检查mid个样本是否能满足±5%偏差
+    if (canSatisfyDeviation(userTags, mid, targetMap, selectedDimensions)) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  const maxPossible = low;
+  const feasible = canSatisfyDeviation(userTags, maxPossible, targetMap, selectedDimensions);
+
+  return { maxPossible, feasible };
+}
+
+// 检查给定样本数量是否能满足±5%偏差
+function canSatisfyDeviation(userTags, sampleSize, targetMap, selectedDimensions) {
+  if (sampleSize === 0) return true;
+
+  // 统计每个标签的人数
+  const tagCounts = new Map();
+  for (const dim of selectedDimensions) {
+    tagCounts.set(dim, new Map());
+  }
+
+  // 取前sampleSize个用户
+  const sampleUsers = userTags.slice(0, sampleSize);
+  for (const { tags } of sampleUsers) {
+    for (const dim of selectedDimensions) {
+      const tag = tags[dim];
+      if (tag) {
+        const dimCounts = tagCounts.get(dim);
+        dimCounts.set(tag, (dimCounts.get(tag) || 0) + 1);
+      }
+    }
+  }
+
+  // 检查每个标签是否满足±5%偏差
+  for (const dim of selectedDimensions) {
+    const dimTargets = targetMap.get(dim);
+    const dimCounts = tagCounts.get(dim);
+    if (!dimTargets || !dimCounts) continue;
+
+    for (const [tag, target] of dimTargets) {
+      const actual = dimCounts.get(tag) || 0;
+      const actualPercent = (actual / sampleSize) * 100;
+      const deviation = Math.abs(actualPercent - target.targetPercent);
+      if (deviation > 5) return false;
+    }
+  }
+
+  return true;
+}
+
+// 测试组件
+function TestComponent() {
+  const [poolSize, setPoolSize] = useState(500);
+  const [sampleSize, setSampleSize] = useState(100);
+  const [result, setResult] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [maxPossibleInfo, setMaxPossibleInfo] = useState(null);
+  const [selectedDimensions, setSelectedDimensions] = useState(['gender', 'age_group']);
+  const [maxPossible, setMaxPossible] = useState(null);
+
+  // 切换维度选择
+  const toggleDimension = (dimKey) => {
+    let newDims;
+    if (selectedDimensions.includes(dimKey)) {
+      if (selectedDimensions.length > 1) {
+        newDims = selectedDimensions.filter(d => d !== dimKey);
+      } else {
+        return; // 至少保留一个维度
+      }
+    } else {
+      newDims = [...selectedDimensions, dimKey];
+    }
+    setSelectedDimensions(newDims);
+
+    // 重新计算最大可抽样数量
+    const pool = createMockUsers(poolSize);
+    const targets = buildTargets(newDims);
+    const { maxPossible, feasible } = calculateMaxSampleSize(pool, targets, newDims);
+    setMaxPossible({ maxPossible, feasible, poolSize });
+  };
+
+  // 构建目标（当维度或池大小变化时）
+  const buildTargets = (dims = selectedDimensions) => {
+    const targets = [];
+    for (const dim of dims) {
+      const dimDef = DIMENSIONS.find(d => d.key === dim);
+      if (!dimDef) continue;
+      const percentPerTag = 100 / dimDef.tags.length;
+      for (const tag of dimDef.tags) {
+        targets.push({
+          dimension: dim,
+          tag: tag.value,
+          targetPercent: percentPerTag,
+          targetCount: Math.round(sampleSize * percentPerTag / 100),
+        });
+      }
+    }
+    return targets;
+  };
+
+  // 初始化时计算最大可抽样数量
+  useEffect(() => {
+    const pool = createMockUsers(poolSize);
+    const targets = buildTargets();
+    const { maxPossible, feasible } = calculateMaxSampleSize(pool, targets, selectedDimensions);
+    setMaxPossible({ maxPossible, feasible, poolSize });
+  }, []);
+
+  const runTest = () => {
+    const logArr = [];
+    const originalLog = console.log;
+    console.log = (...args) => {
+      logArr.push(args.join(' '));
+      originalLog.apply(console, args);
+    };
+
+    try {
+      const pool = createMockUsers(poolSize);
+      const targets = buildTargets();
+
+      const res = dynamicBalanceSampling(pool, targets, sampleSize);
+      setResult(res);
+      setLogs([...logArr]);
+      setMaxPossibleInfo(null); // 重置
+
+      // 如果偏差>5%，计算最大可抽数量
+      if (res.maxDeviation > 5) {
+        const { maxPossible } = calculateMaxSampleSize(pool, targets, selectedDimensions);
+        setMaxPossibleInfo({ maxPossible });
+      }
+    } catch (e) {
+      setLogs([...logArr, `错误: ${e.message}`]);
+    } finally {
+      console.log = originalLog;
+    }
+  };
+
+  // 获取偏差颜色
+  const getDeviationColor = (deviation) => {
+    if (deviation < 2) return '#4CAF50';
+    if (deviation < 5) return '#FF9800';
+    return '#F44336';
+  };
+
+  return (
+    <div style={{ padding: 20, fontFamily: 'Arial', maxWidth: 1200 }}>
+      <h2>参数设置</h2>
+
+      <div style={{ marginBottom: 10 }}>
+        <label>样本库大小: {poolSize}人</label>
+        <input type="range" min="100" max="2000" value={poolSize} onChange={e => {
+          setPoolSize(parseInt(e.target.value));
+          const pool = createMockUsers(parseInt(e.target.value));
+          const targets = buildTargets();
+          const { maxPossible: mp, feasible } = calculateMaxSampleSize(pool, targets, selectedDimensions);
+          setMaxPossible({ maxPossible: mp, feasible, poolSize: parseInt(e.target.value) });
+        }} />
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label>抽样数量: {sampleSize}人</label>
+        <input type="range" min="20" max="1000" value={sampleSize} onChange={e => {
+          setSampleSize(parseInt(e.target.value));
+          const pool = createMockUsers(poolSize);
+          const targets = buildTargets();
+          const { maxPossible: mp, feasible } = calculateMaxSampleSize(pool, targets, selectedDimensions);
+          setMaxPossible({ maxPossible: mp, feasible, poolSize });
+        }} />
+      </div>
+
+      <h3>选择抽样维度（可多选）</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+        {DIMENSIONS.map(dim => (
+          <label key={dim.key} style={{
+            padding: '8px 16px',
+            background: selectedDimensions.includes(dim.key) ? '#2196F3' : '#ddd',
+            color: selectedDimensions.includes(dim.key) ? 'white' : 'black',
+            borderRadius: 20,
+            cursor: 'pointer',
+          }}>
+            <input
+              type="checkbox"
+              checked={selectedDimensions.includes(dim.key)}
+              onChange={() => toggleDimension(dim.key)}
+              style={{ marginRight: 5 }}
+            />
+            {dim.label} ({dim.tags.length}个标签)
+          </label>
+        ))}
+      </div>
+
+      <button onClick={runTest} style={{ padding: '12px 24px', fontSize: 16, cursor: 'pointer' }}>
+        运行抽样（{selectedDimensions.length}个维度）
+      </button>
+
+      {result && (
+        <div style={{ marginTop: 30 }}>
+          <h2>抽样结果</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+            <div style={{ padding: 15, background: '#E3F2FD', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#666' }}>实际抽样</div>
+              <div style={{ fontSize: 24, fontWeight: 'bold' }}>{result.actualSize}人</div>
+            </div>
+            <div style={{ padding: 15, background: '#E8F5E9', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#666' }}>迭代次数</div>
+              <div style={{ fontSize: 24, fontWeight: 'bold' }}>{result.iterations}次</div>
+            </div>
+            <div style={{ padding: 15, background: '#FFF3E0', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#666' }}>最大偏差</div>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: getDeviationColor(result.maxDeviation) }}>
+                {result.maxDeviation.toFixed(2)}%
+              </div>
+            </div>
+            <div style={{ padding: 15, background: result.matchScore >= 0.8 ? '#E8F5E9' : '#FFF3E0', borderRadius: 8 }}>
+              <div style={{ fontSize: 12, color: '#666' }}>匹配度</div>
+              <div style={{ fontSize: 24, fontWeight: 'bold' }}>{(result.matchScore * 100).toFixed(1)}%</div>
+            </div>
+          </div>
+
+          {/* 当最大偏差超过5%时，显示提示和最大可抽数量 */}
+          {result.maxDeviation > 5 && (
+            <div style={{
+              marginBottom: 20,
+              padding: 15,
+              background: '#FFF3E0',
+              borderRadius: 8,
+              border: '2px solid #FF9800',
+            }}>
+              <div style={{ fontSize: 16, marginBottom: 10 }}>
+                <strong>⚠️ 当前条件无法满足±5%偏差要求</strong>
+              </div>
+              <div style={{ fontSize: 14, color: '#666' }}>
+                最大偏差 <strong>{result.maxDeviation.toFixed(2)}%</strong> 超过了5%的阈值。
+              </div>
+              <div style={{ fontSize: 14, color: '#666', marginTop: 10 }}>
+                💡 在当前条件下（不修改维度、不修改比例），满足±5%偏差要求时：
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 'bold', color: '#E65100', marginTop: 5 }}>
+                最多能抽出 <span style={{ fontSize: 28 }}>{maxPossibleInfo?.maxPossible || '...'}</span> 人
+              </div>
+              <div style={{ fontSize: 12, color: '#999', marginTop: 5 }}>
+                （您设计的是 {sampleSize} 人）
+              </div>
+              <div style={{ fontSize: 14, color: '#666', marginTop: 15 }}>
+                建议调整方向：
+              </div>
+              <ul style={{ fontSize: 14, color: '#666', marginTop: 5, paddingLeft: 20 }}>
+                <li>减少选择的维度数量</li>
+                <li>扩大样本库规模</li>
+                <li>调整目标比例（更接近样本库实际分布）</li>
+              </ul>
+            </div>
+          )}
+
+          {/* 使用 useEffect 计算最大可抽数量 */}
+          {result.maxDeviation > 5 && !maxPossibleInfo && (
+            <div style={{ fontSize: 12, color: '#999' }}>
+              正在计算最大可抽数量...
+            </div>
+          )}
+
+          <h3>各维度统计详情</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 20 }}>
+            {result.statistics.map(stat => (
+              <div key={stat.dimension} style={{ border: '1px solid #ddd', borderRadius: 8, padding: 15 }}>
+                <h4 style={{ margin: '0 0 10 0', color: '#333' }}>
+                  {DIMENSION_LABELS[stat.dimension] || stat.dimension}
+                </h4>
+                {stat.tags.map(tag => (
+                  <div key={tag.tag} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '6px 0',
+                    borderBottom: '1px solid #eee',
+                  }}>
+                    <span>{tag.tag}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ color: '#666', fontSize: 12 }}>
+                        目标{tag.targetPercent.toFixed(1)}% → 实际{tag.actualPercent.toFixed(1)}%
+                      </span>
+                      <span style={{
+                        color: getDeviationColor(tag.deviation),
+                        fontWeight: 'bold',
+                        fontSize: 12,
+                      }}>
+                        {tag.deviation.toFixed(1)}%
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div style={{ marginTop: 20 }}>
+          <h3>算法日志</h3>
+          <pre style={{ background: '#1a1a1a', color: '#0f0', padding: 15, borderRadius: 8, maxHeight: 300, overflow: 'auto', fontSize: 11 }}>
+            {logs.join('\n')}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<TestComponent />);
+  </script>
+</body>
+</html>

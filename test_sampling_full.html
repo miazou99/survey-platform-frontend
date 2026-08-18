@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>抽样算法测试 - 完整版</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+    .card { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; color: #333; }
+    .section-title { font-size: 14px; font-weight: 600; color: #666; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    
+    /* 维度选择 */
+    .dimension-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    .dimension-tag { padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: all 0.2s; font-size: 14px; border: none; }
+    .dimension-tag.selected { background: #3b82f6; color: white; }
+    .dimension-tag.unselected { background: #e5e7eb; color: #666; }
+    .dimension-tag:hover { transform: translateY(-1px); }
+    
+    /* 比例编辑器 */
+    .ratio-editor { margin-top: 16px; }
+    .ratio-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .ratio-label { min-width: 100px; font-size: 14px; color: #333; }
+    .ratio-input { width: 80px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; text-align: center; }
+    .ratio-input:focus { outline: none; border-color: #3b82f6; }
+    .ratio-bar { flex: 1; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+    .ratio-bar-fill { height: 100%; background: #3b82f6; transition: width 0.3s; }
+    .ratio-percent { min-width: 50px; font-size: 14px; color: #666; text-align: right; }
+    .ratio-total { font-size: 14px; margin-top: 8px; }
+    .ratio-total.valid { color: #22c55e; }
+    .ratio-total.invalid { color: #ef4444; }
+    
+    /* 结果卡片 */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+    .stat-card { padding: 16px; border-radius: 10px; text-align: center; }
+    .stat-card.blue { background: #dbeafe; }
+    .stat-card.green { background: #dcfce7; }
+    .stat-card.orange { background: #ffedd5; }
+    .stat-card.red { background: #fee2e2; }
+    .stat-label { font-size: 12px; color: #666; margin-bottom: 4px; }
+    .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-value.green { color: #22c55e; }
+    .stat-value.orange { color: #f97316; }
+    .stat-value.red { color: #ef4444; }
+    
+    /* 维度统计 */
+    .dimension-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .dim-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
+    .dim-title { font-size: 15px; font-weight: 600; color: #333; margin-bottom: 12px; }
+    .dim-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f5f5f5; }
+    .dim-row:last-child { border-bottom: none; }
+    .dim-tag { font-size: 13px; color: #333; }
+    .dim-values { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .dim-target { color: #999; }
+    .dim-arrow { color: #ccc; }
+    .dim-actual { font-weight: 500; }
+    .dim-deviation { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .dim-deviation.good { background: #dcfce7; color: #22c55e; }
+    .dim-deviation.warn { background: #ffedd5; color: #f97316; }
+    .dim-deviation.bad { background: #fee2e2; color: #ef4444; }
+    
+    /* 警告卡片 */
+    .warning-card { background: #fff7ed; border: 2px solid #f97316; border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    .warning-title { font-size: 16px; font-weight: 600; color: #c2410c; margin-bottom: 8px; }
+    .warning-text { font-size: 14px; color: #666; }
+    .warning-suggestion { font-size: 14px; color: #666; margin-top: 12px; }
+    .warning-suggestion ul { margin-top: 8px; padding-left: 20px; }
+    .warning-suggestion li { margin: 4px 0; }
+    
+    /* 按钮 */
+    .btn { padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-primary { background: #3b82f6; color: white; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+    .btn-secondary { background: #e5e7eb; color: #333; }
+    .btn-secondary:hover { background: #d1d5db; }
+    
+    /* 数据源切换 */
+    .source-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+    .source-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 14px; }
+    .source-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    
+    /* 滑块 */
+    .slider-row { margin-bottom: 16px; }
+    .slider-label { display: flex; justify-content: space-between; font-size: 14px; color: #333; margin-bottom: 8px; }
+    .slider { width: 100%; height: 6px; border-radius: 3px; background: #e5e7eb; appearance: none; cursor: pointer; }
+    .slider::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #3b82f6; cursor: pointer; }
+    
+    /* 进度条 */
+    .loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #666; }
+    .spinner { width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-type="module">
+const { useState, useEffect, useCallback } = React;
+
+// API配置
+const API_BASE = 'http://localhost:3000/api';
+
+// 维度定义
+const DIMENSIONS = [
+  { key: 'gender', label: '性别', tags: [
+    { value: '男', label: '男' }, { value: '女', label: '女' }
+  ]},
+  { key: 'age_group', label: '年龄段', tags: [
+    { value: 'under18', label: '18岁以下' }, { value: '18-24', label: '18-24岁' },
+    { value: '25-29', label: '25-29岁' }, { value: '30-34', label: '30-34岁' },
+    { value: '35-39', label: '35-39岁' }, { value: '40-44', label: '40-44岁' },
+    { value: '45+', label: '45岁以上' }
+  ]},
+  { key: 'education', label: '学历', tags: [
+    { value: '初中及以下', label: '初中及以下' }, { value: '高中/中专/技校', label: '高中/中专/技校' },
+    { value: '大学专科', label: '大学专科' }, { value: '大学本科', label: '大学本科' },
+    { value: '硕士及以上', label: '硕士及以上' }
+  ]},
+  { key: 'city_tier', label: '城市级别', tags: [
+    { value: 'tier1', label: '一线城市' }, { value: 'tier2', label: '二线城市' },
+    { value: 'tier3', label: '三线城市' }, { value: 'tier4', label: '四线城市' },
+    { value: 'tier5', label: '五线城市' }, { value: 'other', label: '其他' }
+  ]},
+  { key: 'industry', label: '行业', tags: [
+    { value: '互联网/IT', label: '互联网/IT' }, { value: '金融', label: '金融' },
+    { value: '制造业', label: '制造业' }, { value: '教育', label: '教育' },
+    { value: '医疗', label: '医疗' }, { value: '房地产', label: '房地产' },
+    { value: '其他', label: '其他' }
+  ]},
+  { key: 'occupation', label: '职业', tags: [
+    { value: '白领', label: '白领' }, { value: '蓝领', label: '蓝领' },
+    { value: '学生', label: '学生' }, { value: '自由职业', label: '自由职业' },
+    { value: '退休', label: '退休' }, { value: '其他', label: '其他' }
+  ]},
+  { key: 'income', label: '收入', tags: [
+    { value: '5000以下', label: '5000以下' }, { value: '5000-10000', label: '5000-10000' },
+    { value: '10000-20000', label: '10000-20000' }, { value: '20000以上', label: '20000以上' }
+  ]},
+];
+
+// 从年份计算年龄组
+function getAgeGroup(birthYear) {
+  if (!birthYear) return null;
+  const age = new Date().getFullYear() - birthYear;
+  if (age < 18) return 'under18';
+  if (age < 25) return '18-24';
+  if (age < 30) return '25-29';
+  if (age < 35) return '30-34';
+  if (age < 40) return '35-39';
+  if (age < 45) return '40-44';
+  return '45+';
+}
+
+// 从城市获取城市级别
+function getCityTier(city) {
+  if (!city) return null;
+  const tier1 = ['北京', '上海', '广州', '深圳'];
+  const tier2 = ['成都', '杭州', '重庆', '武汉', '西安', '苏州', '天津', '南京', '长沙', '郑州', '东莞', '青岛', '沈阳', '宁波', '昆明'];
+  if (tier1.includes(city)) return 'tier1';
+  if (tier2.includes(city)) return 'tier2';
+  return 'other';
+}
+
+// 获取用户标签
+function getUserTags(user) {
+  return {
+    gender: user.gender,
+    age_group: getAgeGroup(user.birth_year),
+    city_tier: getCityTier(user.city),
+    education: user.education,
+    industry: user.industry,
+    occupation: user.occupation,
+    income: user.income,
+  };
+}
+
+// 加权随机选择
+function weightedRandom(weights) {
+  const entries = Object.entries(weights);
+  const total = entries.reduce((sum, [, w]) => sum + w, 0);
+  let r = Math.random() * total;
+  for (const [k, w] of entries) {
+    r -= w;
+    if (r <= 0) return k;
+  }
+  return entries[entries.length - 1][0];
+}
+
+// 生成模拟用户
+function createMockUsers(count) {
+  const users = [];
+  for (let i = 0; i < count; i++) {
+    users.push({
+      openid: `mock_${i}_${Math.random().toString(36).substr(2, 9)}`,
+      gender: weightedRandom({ '男': 52, '女': 48 }),
+      birth_year: 1975 + Math.floor(Math.random() * 35),
+      education: weightedRandom({ '初中及以下': 10, '高中/中专/技校': 25, '大学专科': 28, '大学本科': 32, '硕士及以上': 5 }),
+      city: weightedRandom({ '北京': 5, '上海': 5, '广州': 4, '深圳': 4, '成都': 6, '杭州': 4, '其他': 72 }),
+      industry: weightedRandom({ '互联网/IT': 22, '金融': 10, '制造业': 15, '教育': 12, '医疗': 8, '房地产': 8, '其他': 25 }),
+      occupation: weightedRandom({ '白领': 42, '蓝领': 18, '学生': 12, '自由职业': 16, '退休': 6, '其他': 6 }),
+      income: weightedRandom({ '5000以下': 18, '5000-10000': 32, '10000-20000': 35, '20000以上': 15 }),
+    });
+  }
+  return users;
+}
+
+// 动态平衡抽样算法
+function dynamicBalanceSampling(pool, targets, sampleSize, options = {}) {
+  const { replaceRatio = 0.1, candidateRatio = 0.2, deviationThreshold = 0.05, randomFactor = 0.1 } = options;
+  const maxIterations = Math.min(200, Math.max(50, Math.floor(pool.length * 2)));
+
+  if (pool.length === 0) throw new Error('样本库为空');
+
+  const dimensions = [...new Set(targets.map(t => t.dimension))];
+  const targetMap = new Map();
+  for (const t of targets) {
+    if (!targetMap.has(t.dimension)) targetMap.set(t.dimension, new Map());
+    targetMap.get(t.dimension).set(t.tag, t);
+  }
+
+  // 预过滤
+  const filteredPool = pool.filter(user => {
+    const tags = getUserTags(user);
+    for (const dim of dimensions) {
+      const tag = tags[dim];
+      if (!tag) return false;
+      const targetTags = targetMap.get(dim);
+      if (!targetTags) continue;
+      if (!targetTags.has(tag)) return false;
+      if (Math.abs(targetTags.get(tag).targetPercent) < 0.001) return false;
+    }
+    return true;
+  });
+
+  if (filteredPool.length === 0) throw new Error('没有符合条件的用户');
+
+  const actualSampleSize = Math.min(sampleSize, filteredPool.length);
+  const shuffled = [...filteredPool].sort(() => Math.random() - 0.5);
+  const sampledPool = shuffled.slice(0, actualSampleSize);
+  const candidatePool = shuffled.slice(actualSampleSize);
+
+  let iterations = 0, replacedCount = 0;
+
+  function calcDistribution(samples) {
+    const dist = new Map();
+    for (const dim of dimensions) dist.set(dim, new Map());
+    for (const user of samples) {
+      const tags = getUserTags(user);
+      for (const dim of dimensions) {
+        const tag = tags[dim];
+        if (tag) {
+          const m = dist.get(dim);
+          m.set(tag, (m.get(tag) || 0) + 1);
+        }
+      }
+    }
+    return dist;
+  }
+
+  function calcDimScore(user, dist) {
+    const tags = getUserTags(user);
+    const scores = {};
+    for (const dim of dimensions) {
+      const tag = tags[dim];
+      const target = targetMap.get(dim)?.get(tag);
+      if (!target) { scores[dim] = 0; continue; }
+      const actual = dist.get(dim)?.get(tag) || 0;
+      const actualPct = sampledPool.length > 0 ? actual / sampledPool.length : 0;
+      const targetPct = target.targetPercent / 100;
+      scores[dim] = targetPct <= 0 ? 0 : Math.max(-1, Math.min(2, 1.05 - actualPct / targetPct));
+    }
+    return scores;
+  }
+
+  function calcValue(user, dist, random) {
+    const scores = calcDimScore(user, dist);
+    for (const dim of dimensions) if (scores[dim] === 0) return -1000 + (random ? Math.random() * randomFactor : 0);
+    let product = 1;
+    for (const dim of dimensions) product *= (scores[dim] + 1.1);
+    return Math.pow(product, 1 / dimensions.length) + (random ? Math.random() * randomFactor : 0);
+  }
+
+  function calcMaxDev(dist) {
+    let max = 0;
+    for (const dim of dimensions) {
+      const tagMap = dist.get(dim);
+      for (const [tag, actual] of tagMap) {
+        const target = targetMap.get(dim)?.get(tag);
+        if (target && target.targetPercent > 0) {
+          const actualPct = sampledPool.length > 0 ? (actual / sampledPool.length) * 100 : 0;
+          max = Math.max(max, Math.abs(actualPct - target.targetPercent));
+        }
+      }
+    }
+    return max;
+  }
+
+  for (let i = 0; i < maxIterations; i++) {
+    iterations++;
+    const dist = calcDistribution(sampledPool);
+    if (calcMaxDev(dist) < deviationThreshold * 100) break;
+
+    const sampledWithVal = sampledPool.map(u => ({ user: u, value: calcValue(u, dist, false) }));
+    sampledWithVal.sort((a, b) => a.value - b.value);
+
+    const replaceCount = Math.max(1, Math.floor(actualSampleSize * replaceRatio));
+    const evalCount = Math.max(10, Math.floor(candidatePool.length * candidateRatio));
+    const shuffledCand = [...candidatePool].sort(() => Math.random() - 0.5).slice(0, evalCount);
+    const candWithVal = shuffledCand.map(u => ({ user: u, value: calcValue(u, dist, true) }));
+    candWithVal.sort((a, b) => b.value - a.value);
+
+    for (let j = 0; j < replaceCount && j < candWithVal.length; j++) {
+      const toRep = sampledWithVal[j];
+      const toAdd = candWithVal[j];
+      if (!toRep || !toAdd || toAdd.value <= toRep.value) continue;
+
+      const idx = sampledPool.findIndex(u => u.openid === toRep.user.openid);
+      if (idx !== -1) sampledPool[idx] = toAdd.user;
+
+      const cidx = candidatePool.findIndex(u => u.openid === toAdd.user.openid);
+      if (cidx !== -1) candidatePool.splice(cidx, 1);
+      candidatePool.push(toRep.user);
+      replacedCount++;
+    }
+  }
+
+  const finalDist = calcDistribution(sampledPool);
+  const finalMaxDev = calcMaxDev(finalDist);
+  const statistics = [];
+
+  for (const dim of dimensions) {
+    const tagStats = [];
+    const targetTags = targetMap.get(dim);
+    if (targetTags) {
+      for (const [tag, target] of targetTags) {
+        const actual = finalDist.get(dim)?.get(tag) || 0;
+        const actualPct = sampledPool.length > 0 ? (actual / sampledPool.length) * 100 : 0;
+        tagStats.push({ tag, targetCount: target.targetCount, actualCount: actual, targetPercent: target.targetPercent, actualPercent: actualPct, deviation: Math.abs(actualPct - target.targetPercent) });
+      }
+    }
+    statistics.push({ dimension: dim, tags: tagStats });
+  }
+
+  return { selectedUsers: sampledPool, statistics, matchScore: Math.max(0, 1 - finalMaxDev / 100 / deviationThreshold), iterations, replacedCount, actualSize: sampledPool.length, maxDeviation: finalMaxDev };
+}
+
+// 计算最大可抽数量
+function calcMaxPossible(pool, targets, selectedDimensions) {
+  if (!pool.length || !selectedDimensions.length) return { maxPossible: 0, feasible: false };
+
+  const targetMap = new Map();
+  for (const t of targets) {
+    if (!targetMap.has(t.dimension)) targetMap.set(t.dimension, new Map());
+    targetMap.get(t.dimension).set(t.tag, t);
+  }
+
+  const userTags = pool.map((user, idx) => ({ idx, tags: getUserTags(user), user }));
+
+  function canSatisfy(sampleSize) {
+    if (sampleSize === 0) return true;
+    const tagCounts = new Map();
+    for (const dim of selectedDimensions) tagCounts.set(dim, new Map());
+    const samples = userTags.slice(0, sampleSize);
+    for (const { tags } of samples) {
+      for (const dim of selectedDimensions) {
+        const tag = tags[dim];
+        if (tag) {
+          const m = tagCounts.get(dim);
+          m.set(tag, (m.get(tag) || 0) + 1);
+        }
+      }
+    }
+    for (const dim of selectedDimensions) {
+      const dimTargets = targetMap.get(dim);
+      const dimCounts = tagCounts.get(dim);
+      if (!dimTargets || !dimCounts) continue;
+      for (const [tag, target] of dimTargets) {
+        const actual = dimCounts.get(tag) || 0;
+        const deviation = Math.abs((actual / sampleSize) * 100 - target.targetPercent);
+        if (deviation > 5) return false;
+      }
+    }
+    return true;
+  }
+
+  let low = 1, high = pool.length;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (canSatisfy(mid)) low = mid;
+    else high = mid - 1;
+  }
+  return { maxPossible: low, feasible: canSatisfy(low) };
+}
+
+// 主组件
+function App() {
+  const [dataSource, setDataSource] = useState('mock'); // 'mock' | 'real'
+  const [poolSize, setPoolSize] = useState(500);
+  const [sampleSize, setSampleSize] = useState(100);
+  const [selectedDims, setSelectedDims] = useState(['gender', 'age_group']);
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [maxPossible, setMaxPossible] = useState(null);
+  const [pool, setPool] = useState(null);
+
+  // 维度比例状态 { dimension: { tag: percent } }
+  const [ratios, setRatios] = useState(() => {
+    const init = {};
+    for (const dim of DIMENSIONS) {
+      init[dim.key] = {};
+      const perTag = 100 / dim.tags.length;
+      for (const tag of dim.tags) {
+        init[dim.key][tag.value] = perTag;
+      }
+    }
+    return init;
+  });
+
+  // 获取数据
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      let users;
+      if (dataSource === 'real') {
+        const res = await fetch(`${API_BASE}/users?pageSize=2000`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}` }
+        });
+        if (!res.ok) throw new Error('API请求失败，请确保后端服务已启动');
+        const data = await res.json();
+        users = data.data || [];
+      } else {
+        users = createMockUsers(poolSize);
+      }
+      setPool(users);
+      return users;
+    } catch (e) {
+      setError(e.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [dataSource, poolSize]);
+
+  // 构建目标
+  const buildTargets = useCallback(() => {
+    const targets = [];
+    for (const dimKey of selectedDims) {
+      const dimDef = DIMENSIONS.find(d => d.key === dimKey);
+      if (!dimDef) continue;
+      const dimRatios = ratios[dimKey];
+      for (const tag of dimDef.tags) {
+        const percent = dimRatios[tag.value] || 0;
+        if (percent > 0) {
+          targets.push({
+            dimension: dimKey,
+            tag: tag.value,
+            targetPercent: percent,
+            targetCount: Math.round(sampleSize * percent / 100),
+          });
+        }
+      }
+    }
+    return targets;
+  }, [selectedDims, ratios, sampleSize]);
+
+  // 切换维度
+  const toggleDim = (dimKey) => {
+    if (selectedDims.includes(dimKey)) {
+      if (selectedDims.length > 1) setSelectedDims(selectedDims.filter(d => d !== dimKey));
+    } else {
+      setSelectedDims([...selectedDims, dimKey]);
+    }
+  };
+
+  // 更新比例
+  const updateRatio = (dimKey, tagValue, value) => {
+    setRatios(prev => ({
+      ...prev,
+      [dimKey]: { ...prev[dimKey], [tagValue]: value }
+    }));
+  };
+
+  // 均衡分配比例
+  const equalizeRatios = (dimKey) => {
+    const dimDef = DIMENSIONS.find(d => d.key === dimKey);
+    if (!dimDef) return;
+    const perTag = 100 / dimDef.tags.length;
+    setRatios(prev => ({
+      ...prev,
+      [dimKey]: Object.fromEntries(dimDef.tags.map(t => [t.value, perTag]))
+    }));
+  };
+
+  // 运行抽样
+  const runSampling = async () => {
+    const users = pool || await fetchData();
+    if (!users) return;
+
+    const targets = buildTargets();
+    const res = dynamicBalanceSampling(users, targets, sampleSize);
+    setResult(res);
+
+    // 计算最大可抽数量
+    if (res.maxDeviation > 5) {
+      const mp = calcMaxPossible(users, targets, selectedDims);
+      setMaxPossible(mp);
+    } else {
+      setMaxPossible(null);
+    }
+  };
+
+  // 数据源切换时重新获取
+  useEffect(() => {
+    if (dataSource === 'real') {
+      fetchData();
+    } else {
+      setPool(null);
+      setResult(null);
+      setMaxPossible(null);
+    }
+  }, [dataSource]);
+
+  // 池大小变化时更新模拟数据
+  useEffect(() => {
+    if (dataSource === 'mock') {
+      setPool(createMockUsers(poolSize));
+    }
+  }, [poolSize]);
+
+  // 计算总比例
+  const getDimTotal = (dimKey) => Object.values(ratios[dimKey] || {}).reduce((a, b) => a + b, 0);
+
+  // 获取偏差颜色
+  const getDevClass = (dev) => dev < 2 ? 'good' : dev < 5 ? 'warn' : 'bad';
+
+  // 获取维度标签
+  const getDimLabel = (dimKey) => DIMENSIONS.find(d => d.key === dimKey)?.label || dimKey;
+  const getTagLabel = (dimKey, tagValue) => {
+    const dim = DIMENSIONS.find(d => d.key === dimKey);
+    return dim?.tags.find(t => t.value === tagValue)?.label || tagValue;
+  };
+
+  return (
+    <div className="container">
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: '#333' }}>动态平衡抽样算法测试</h1>
+
+      {/* 数据源选择 */}
+      <div className="card">
+        <div className="card-title">1. 选择数据源</div>
+        <div className="source-toggle">
+          <button className={`source-btn ${dataSource === 'mock' ? 'active' : ''}`} onClick={() => setDataSource('mock')}>
+            模拟数据
+          </button>
+          <button className={`source-btn ${dataSource === 'real' ? 'active' : ''}`} onClick={() => setDataSource('real')}>
+            真实API (需后端服务)
+          </button>
+        </div>
+        {dataSource === 'mock' && (
+          <div className="slider-row">
+            <div className="slider-label">
+              <span>样本库大小</span>
+              <span>{poolSize}人</span>
+            </div>
+            <input type="range" className="slider" min="100" max="2000" value={poolSize} onChange={e => setPoolSize(parseInt(e.target.value))} />
+          </div>
+        )}
+        {dataSource === 'real' && (
+          <div style={{ fontSize: 14, color: '#666' }}>
+            将从API: {API_BASE}/users 获取真实用户数据（最多2000条）
+          </div>
+        )}
+      </div>
+
+      {/* 维度选择 */}
+      <div className="card">
+        <div className="card-title">2. 选择抽样维度（可多选）</div>
+        <div className="dimension-tags">
+          {DIMENSIONS.map(dim => (
+            <button
+              key={dim.key}
+              className={`dimension-tag ${selectedDims.includes(dim.key) ? 'selected' : 'unselected'}`}
+              onClick={() => toggleDim(dim.key)}
+            >
+              {dim.label} ({dim.tags.length})
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 比例设置 */}
+      <div className="card">
+        <div className="card-title">3. 设置各维度比例（可自定义）</div>
+        {selectedDims.map(dimKey => {
+          const dimDef = DIMENSIONS.find(d => d.key === dimKey);
+          if (!dimDef) return null;
+          const total = getDimTotal(dimKey);
+          return (
+            <div key={dimKey} className="ratio-editor">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <div className="section-title">{dimDef.label}</div>
+                <button className="btn-secondary" style={{ padding: '4px 12px', fontSize: 12 }} onClick={() => equalizeRatios(dimKey)}>
+                  均等分配
+                </button>
+              </div>
+              {dimDef.tags.map(tag => (
+                <div key={tag.value} className="ratio-row">
+                  <div className="ratio-label">{tag.label}</div>
+                  <input
+                    type="number"
+                    className="ratio-input"
+                    value={Math.round(ratios[dimKey][tag.value])}
+                    onChange={e => updateRatio(dimKey, tag.value, Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                    min="0" max="100"
+                  />
+                  <div className="ratio-bar">
+                    <div className="ratio-bar-fill" style={{ width: `${ratios[dimKey][tag.value]}%` }} />
+                  </div>
+                  <div className="ratio-percent">{ratios[dimKey][tag.value].toFixed(1)}%</div>
+                </div>
+              ))}
+              <div className={`ratio-total ${Math.abs(total - 100) < 0.1 ? 'valid' : 'invalid'}`}>
+                合计: {total.toFixed(1)}% {Math.abs(total - 100) < 0.1 ? '✓' : '（需等于100%）'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 抽样数量 */}
+      <div className="card">
+        <div className="card-title">4. 设置抽样数量</div>
+        <div className="slider-row">
+          <div className="slider-label">
+            <span>设计抽样数量</span>
+            <span>{sampleSize}人</span>
+          </div>
+          <input type="range" className="slider" min="10" max={dataSource === 'mock' ? Math.min(500, poolSize) : 500} value={sampleSize} onChange={e => setSampleSize(parseInt(e.target.value))} />
+        </div>
+      </div>
+
+      {/* 运行按钮 */}
+      <div style={{ textAlign: 'center', marginBottom: 24 }}>
+        <button className="btn btn-primary" onClick={runSampling} disabled={loading || selectedDims.length === 0}>
+          {loading ? '加载中...' : '运行抽样'}
+        </button>
+      </div>
+
+      {error && (
+        <div className="warning-card" style={{ borderColor: '#ef4444', background: '#fef2f2' }}>
+          <div className="warning-title" style={{ color: '#dc2626' }}>错误</div>
+          <div className="warning-text">{error}</div>
+        </div>
+      )}
+
+      {/* 结果 */}
+      {result && !loading && (
+        <>
+          {/* 警告卡片 */}
+          {result.maxDeviation > 5 && (
+            <div className="warning-card">
+              <div className="warning-title">⚠️ 当前条件无法满足±5%偏差要求</div>
+              <div className="warning-text">
+                最大偏差 <strong>{result.maxDeviation.toFixed(2)}%</strong> 超过了5%的阈值。
+              </div>
+              {maxPossible && (
+                <div style={{ marginTop: 12, fontSize: 16 }}>
+                  在当前条件下（不修改维度、不修改比例），满足±5%偏差要求时：
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#c2410c', marginTop: 4 }}>
+                    最多能抽出 <span style={{ fontSize: 32 }}>{maxPossible.maxPossible}</span> 人
+                  </div>
+                  <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>（您设计的是 {sampleSize} 人）</div>
+                </div>
+              )}
+              <div className="warning-suggestion">
+                💡 建议调整方向：
+                <ul>
+                  <li>减少选择的维度数量</li>
+                  <li>扩大样本库规模</li>
+                  <li>调整目标比例（更接近样本库实际分布）</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* 统计卡片 */}
+          <div className="stats-grid">
+            <div className="stat-card blue">
+              <div className="stat-label">实际抽样</div>
+              <div className="stat-value">{result.actualSize}人</div>
+            </div>
+            <div className="stat-card green">
+              <div className="stat-label">迭代次数</div>
+              <div className="stat-value">{result.iterations}次</div>
+            </div>
+            <div className={`stat-card ${result.maxDeviation > 5 ? 'red' : 'orange'}`}>
+              <div className="stat-label">最大偏差</div>
+              <div className={`stat-value ${result.maxDeviation > 5 ? 'red' : result.maxDeviation < 2 ? 'green' : 'orange'}`}>
+                {result.maxDeviation.toFixed(2)}%
+              </div>
+            </div>
+            <div className={`stat-card ${result.matchScore >= 0.8 ? 'green' : 'orange'}`}>
+              <div className="stat-label">匹配度</div>
+              <div className={`stat-value ${result.matchScore >= 0.8 ? 'green' : ''}`}>{(result.matchScore * 100).toFixed(1)}%</div>
+            </div>
+          </div>
+
+          {/* 维度统计 */}
+          <div className="card">
+            <div className="card-title">各维度统计详情</div>
+            <div className="dimension-stats">
+              {result.statistics.map(stat => (
+                <div key={stat.dimension} className="dim-card">
+                  <div className="dim-title">{getDimLabel(stat.dimension)}</div>
+                  {stat.tags.map(tag => (
+                    <div key={tag.tag} className="dim-row">
+                      <div className="dim-tag">{getTagLabel(stat.dimension, tag.tag)}</div>
+                      <div className="dim-values">
+                        <span className="dim-target">{tag.targetPercent.toFixed(1)}%</span>
+                        <span className="dim-arrow">→</span>
+                        <span className="dim-actual">{tag.actualPercent.toFixed(1)}%</span>
+                        <span className={`dim-deviation ${getDevClass(tag.deviation)}`}>
+                          {tag.deviation.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {loading && (
+        <div className="loading">
+          <div className="spinner" />
+          正在加载数据...
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

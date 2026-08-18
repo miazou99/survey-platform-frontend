@@ -72,13 +72,13 @@ export function convertToUserProfile(
   const gender = parseGender(row.gender || '');
   const birthYear = parseBirthYear(row.birth_year || '');
 
-  if (!gender || !birthYear) {
+  if (!gender || !birthYear || !row.openid) {
     console.log('[导入跳过] 缺少必需字段:', { gender, birthYear, openid: row.openid });
-    return null; // 必需字段缺失
+    return null; // 必需字段缺失（含 openid，避免随机生成脏数据）
   }
 
   const profile: UserProfile = {
-    openid: row.openid || `o${Math.random().toString(36).substring(2, 15)}`,
+    openid: row.openid,
     gender,
     birth_year: birthYear,
     education: parseOptionValue(row.education || ''),
@@ -151,8 +151,19 @@ export function getUserDetailsWithDerived(
  * 获取有效用户（从后端API获取 - 关注公众号且完成注册的用户）
  */
 export async function getValidUsers(): Promise<UserProfile[]> {
-  const response = await userApi.list({ pageSize: 10000 });
-  return response.data as UserProfile[];
+  // 分页循环拉取全量，避免 pageSize 上限截断用户库
+  const pageSize = 1000;
+  const all: UserProfile[] = [];
+  let page = 1;
+  let total = 0;
+  do {
+    const response = await userApi.list({ page, pageSize });
+    const data = (response.data || []) as UserProfile[];
+    all.push(...data);
+    total = response.total ?? all.length;
+    page += 1;
+  } while (all.length < total);
+  return all;
 }
 
 /**
@@ -197,11 +208,13 @@ export async function getUserStats(): Promise<{
   const validUsers = validUsersRes.count;
   const pendingUsers = await getPendingUsers();
 
-  // 从后端获取成功发放人次
+  // 从后端获取成功发放人次 + 已答题人数（均按 openid 去重）
   let sentSamples = 0;
+  let completedSamples = 0;
   try {
     const stats = await projectApi.getStatistics();
     sentSamples = stats.totalSentSamples || 0;
+    completedSamples = stats.totalCollectedSamples || 0;
   } catch (error) {
     console.error('获取项目统计失败:', error);
   }
@@ -211,7 +224,7 @@ export async function getUserStats(): Promise<{
     validUsers: validUsers,
     pendingUsers: pendingUsers,
     sentSamples: sentSamples,
-    completedSamples: 0,  // 已答题人数统计不了，设为0
+    completedSamples: completedSamples,
   };
 }
 
