@@ -7,6 +7,11 @@ COPY package*.json ./
 RUN npm install
 
 COPY . .
+
+# 设置生产环境 API 基础地址
+ARG VITE_API_BASE_URL=https://shenyan-panel.synthoresearch.cn/api
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 RUN npm run build
 
 # 运行阶段：用 Nginx 托管静态文件
