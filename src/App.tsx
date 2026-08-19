@@ -7,6 +7,7 @@ import UserProfileManage from './pages/Users/UserProfileManage';
 import Settings from './pages/Settings/Settings';
 import Overview from './pages/Overview';
 import HongbaoCenter from './pages/HongbaoCenter';
+import DeployPanel from './pages/DeployPanel';
 import Login from './pages/Login/Login';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
@@ -19,6 +20,7 @@ import {
   Database,
   BarChart3,
   Gift,
+  Rocket,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -32,6 +34,7 @@ function Sidebar({ isCollapsed }: { isCollapsed: boolean }) {
     { path: '/overview', label: '数据概览', icon: BarChart3 },
     { path: '/users', label: '用户库', icon: Users },
     { path: '/users/profile', label: '画像管理', icon: Database },
+    { path: '/deploy', label: '部署面板', icon: Rocket },
     { path: '/settings', label: '安全配置', icon: SettingsIcon },
   ];
 
@@ -122,6 +125,7 @@ function App() {
             <Route path="hongbao-center" element={<HongbaoCenter />} />
             <Route path="users" element={<UserLibrary />} />
             <Route path="users/profile" element={<UserProfileManage />} />
+            <Route path="deploy" element={<DeployPanel />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>
