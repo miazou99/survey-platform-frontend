@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { showToast, showConfirm } from '../../components/Toast';
+import { showToast, showConfirm as confirmDialog } from '../../components/Toast';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -123,7 +123,19 @@ export default function ProjectDetail() {
   // 根据状态确定显示哪些 Tab
   const tabs = getTabsForStatus(project.status);
 
-  return <ProjectTabs project={project} tabs={tabs} navigate={navigate} />;
+  // 切换项目状态（更新本地 state，不刷新页面，避免白屏）
+  const handleProjectStatusChange = (newStatus: string) => {
+    setProject((prev: any) => (prev ? { ...prev, status: newStatus } : prev));
+  };
+
+  return (
+    <ProjectTabs
+      project={project}
+      tabs={tabs}
+      navigate={navigate}
+      onProjectUpdated={handleProjectStatusChange}
+    />
+  );
 }
 
 function getTabsForStatus(status: Project['status']) {
@@ -209,7 +221,17 @@ function DraftProjectEdit({ project, navigate }: { project: Project; navigate: a
   );
 }
 
-function ProjectTabs({ project, tabs, navigate }: { project: Project; tabs: any[]; navigate: any }) {
+function ProjectTabs({
+  project,
+  tabs,
+  navigate,
+  onProjectUpdated,
+}: {
+  project: Project;
+  tabs: any[];
+  navigate: any;
+  onProjectUpdated: (status: string) => void;
+}) {
   const [activeTab, setActiveTab] = useState(tabs[0]?.key || 'settings');
   const [answerRecords, setAnswerRecords] = useState<AnswerRecord[]>([]);
   const [recordsLoaded, setRecordsLoaded] = useState(false);
@@ -467,6 +489,7 @@ function ProjectTabs({ project, tabs, navigate }: { project: Project; tabs: any[
             totalPages={totalPages}
             totalAnswerRecords={totalAnswerRecords}
             loadAnswerRecords={loadAnswerRecords}
+            onProjectUpdated={onProjectUpdated}
           />
         )}
         {activeTab === 'hongbao' && (
@@ -722,6 +745,7 @@ function AnswersTab({
   totalPages,
   totalAnswerRecords,
   loadAnswerRecords,
+  onProjectUpdated,
 }: {
   project: Project;
   answerRecords: AnswerRecord[];
@@ -733,6 +757,7 @@ function AnswersTab({
   totalPages: number;
   totalAnswerRecords: number;
   loadAnswerRecords: (page: number) => Promise<void>;
+  onProjectUpdated: (status: string) => void;
 }) {
   const [showHongbaoConfirm, setShowHongbaoConfirm] = useState(false);
 
@@ -756,7 +781,9 @@ function AnswersTab({
     try {
       await projectApi.update(project.id, { status: 'pending' });
       setShowHongbaoConfirm(false);
-      window.location.reload();
+      // 直接更新本地状态触发重渲染，不用 window.location.reload() 避免整页白屏
+      onProjectUpdated('pending');
+      showToast('已切换到发红包阶段', 'success');
     } catch (err: any) {
       showToast(`切换失败: ${err.message || '网络错误'}`, 'error');
     }
@@ -1311,7 +1338,7 @@ function HongbaoTab({
     // ⚠️ 双重防护：防止快速双击 / showConfirm 期间重复触发
     if (sending) return;
     // 先确认
-    const confirmed = await showConfirm(
+    const confirmed = await confirmDialog(
       `确认继续发放红包？\n\n将从断点继续，金额：¥${hongbaoConfig.final_average?.toFixed(2) || '--'}/人`,
     );
     if (!confirmed) return;
@@ -1469,7 +1496,7 @@ function HongbaoTab({
     if (sending) return;  // ⚠️ 防双击
     const failedCount = sendLog.filter((l) => !l.success).length;
     const failedAmount = (failedCount * hongbaoConfig.final_average).toFixed(2);
-    const confirmed = await showConfirm(
+    const confirmed = await confirmDialog(
       `确认重试 ${failedCount} 笔失败红包？\n\n金额：¥${hongbaoConfig.final_average?.toFixed(2) || '--'}/人\n合计：¥${failedAmount}\n备注：${remark || '无'}`,
     );
     if (!confirmed) return;
@@ -2935,7 +2962,7 @@ function ExportTab({ project, answerRecords }: { project: Project; answerRecords
         wch: h.startsWith('画像_') ? 14 : h.includes('.') ? 24 : h.length > 10 ? 20 : 14,
       }));
 
-      const projectCode = project.project_code || project.projectCode || '';
+      const projectCode = project.project_code || '';
       XLSX.writeFile(wb, `答题数据_${projectCode}.xlsx`);
     }
   };
