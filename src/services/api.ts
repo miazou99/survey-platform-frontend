@@ -127,7 +127,7 @@ export const hongbaoApi = {
   list: (projectId: string, params?: {
     page?: number;
     pageSize?: number;
-    status?: 'success' | 'failed' | 'notified';
+    status?: 'success' | 'failed' | 'notified' | 'pending';
     keyword?: string;
   }) => {
     const sp = new URLSearchParams();
@@ -151,6 +151,8 @@ export const hongbaoApi = {
       totalCount: number;
       successAmount: number;
       successCount: number;
+      notifiedAmount: number;
+      notifiedCount: number;
       failedAmount: number;
       failedCount: number;
     }>(`/projects/${projectId}/hongbao-statistics`),

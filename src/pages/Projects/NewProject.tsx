@@ -1275,6 +1275,9 @@ export default function NewProject() {
                             errors.survey_link ? 'border-red-500' : 'border-gray-300'
                           }`}
                         />
+                        <p className="mt-2 text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 leading-relaxed">
+                          提交前请确认问卷已完成两项配置：① 已在回收设置中配置 Webhook 回调地址；② 已开启「用户 ID」字段传输。
+                        </p>
                         {errors.survey_link && (
                           <p className="mt-1 text-sm text-red-500 flex items-center gap-1">
                             <AlertCircle className="w-4 h-4" /> {errors.survey_link}
@@ -1421,7 +1424,7 @@ export default function NewProject() {
                     value={formData.total_samples}
                     onChange={e => setFormData(prev => ({
                       ...prev,
-                      total_samples: e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1)
+                      total_samples: (e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1)) as unknown as number
                     }))}
                     className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none ${
                       errors.total_samples ? 'border-red-500' : 'border-gray-300'

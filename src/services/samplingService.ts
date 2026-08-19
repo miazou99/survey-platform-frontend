@@ -68,7 +68,7 @@ function fisherYatesShuffleInPlace<T>(arr: T[]): void {
 // ========== 标签工具 ==========
 
 function getUserDimensionTags(user: UserProfile): Record<string, string> {
-  const genderValue = user.gender === 'male' ? '男' : (user.gender === 'female' ? '女' : user.gender);
+  const genderValue = user.gender;
   return {
     gender: genderValue,
     age_group: getAgeGroup(user.birth_year),

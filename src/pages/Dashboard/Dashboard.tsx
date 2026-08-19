@@ -25,6 +25,7 @@ const STATUS_CONFIG: Record<ProjectStatus, { label: string; color: string; bgCol
   pending_hongbao: { label: '待发红包', color: 'text-orange-600', bgColor: 'bg-orange-100', icon: <Users className="w-4 h-4" /> },
   active: { label: '进行中', color: 'text-green-600', bgColor: 'bg-green-100', icon: <Clock className="w-4 h-4" /> },
   in_progress: { label: '进行中', color: 'text-green-600', bgColor: 'bg-green-100', icon: <Clock className="w-4 h-4" /> },
+  paused: { label: '已暂停', color: 'text-yellow-600', bgColor: 'bg-yellow-100', icon: <Clock className="w-4 h-4" /> },
   completed: { label: '已完成', color: 'text-blue-600', bgColor: 'bg-blue-100', icon: <FileText className="w-4 h-4" /> },
 };
 

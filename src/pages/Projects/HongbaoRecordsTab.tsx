@@ -51,7 +51,7 @@ export default function HongbaoRecordsTab({ project }: Props) {
   const [grandTotal, setGrandTotal] = useState(0); // 「全部」总数，首次加载后不变
   // 每个状态的记录总数缓存（从列表 API 获取，切走不丢）
   const [statusTotals, setStatusTotals] = useState<Record<StatusFilter, number>>({
-    all: 0, success: 0, notified: 0, failed: 0,
+    all: 0, success: 0, notified: 0, failed: 0, pending: 0,
   });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -113,7 +113,7 @@ export default function HongbaoRecordsTab({ project }: Props) {
   // 首次加载时并行拉取所有状态的 total，避免 stats 去重导致失败数为 0
   useEffect(() => {
     const loadAllTotals = async () => {
-      const statuses: StatusFilter[] = ['success', 'notified', 'failed'];
+      const statuses: Exclude<StatusFilter, 'all'>[] = ['success', 'notified', 'failed'];
       const results = await Promise.allSettled(
         statuses.map((s) =>
           hongbaoApi.list(project.id, { page: 1, pageSize: 1, status: s }),
