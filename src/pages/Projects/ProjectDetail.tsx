@@ -493,7 +493,7 @@ function ProjectTabs({
           />
         )}
         {activeTab === 'hongbao' && (
-          <HongbaoTab project={project} answerRecords={uniqueAnswers} />
+          <HongbaoTab project={project} answerRecords={uniqueAnswers} onProjectUpdated={onProjectUpdated} />
         )}
         {activeTab === 'export' && <ExportTab project={project} answerRecords={uniqueAnswers} />}
         {activeTab === 'hongbao-records' && <HongbaoRecordsTab project={project} />}
@@ -1056,9 +1056,11 @@ function AnswersTab({
 function HongbaoTab({
   project,
   answerRecords,
+  onProjectUpdated,
 }: {
   project: Project;
   answerRecords: AnswerRecord[];
+  onProjectUpdated: (status: string) => void;
 }) {
   // 问卷系统判定无效的用户列表
   const tencentInvalidRecords = answerRecords.filter((r) => r.is_valid === false);
@@ -1474,6 +1476,8 @@ function HongbaoTab({
       projectApi.update(project.id, { status: 'completed' }).catch((err) => {
         console.error('更新项目状态失败:', err.message);
       });
+      // 直接更新本地状态，切到「红包记录」Tab，不用 reload 避免整页白屏
+      onProjectUpdated('completed');
       setTimeout(() => setShowConfirm(false), 1200);
     }
   };
@@ -1514,7 +1518,7 @@ function HongbaoTab({
       await projectApi.update(project.id, { status: 'completed' });
       setShowConfirm(false);
       showToast('已跳过失败红包，项目标记为已完成', 'success');
-      setTimeout(() => window.location.reload(), 800);
+      onProjectUpdated('completed');
     } catch (err: any) {
       showToast(`操作失败: ${err.message || '网络错误'}`, 'error');
     }
@@ -1969,7 +1973,7 @@ oGHI345678`}
                 </div>
                 {sendResult.failed === 0 && (
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => onProjectUpdated('completed')}
                     className="mt-2 px-4 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition"
                   >
                     完成
@@ -2096,7 +2100,7 @@ oGHI345678`}
                     await projectApi.update(project.id, { status: 'completed' });
                     setShowSkipConfirm(false);
                     showToast('已跳过红包，项目标记为已完成', 'success');
-                    setTimeout(() => window.location.reload(), 800);
+                    onProjectUpdated('completed');
                   } catch (err: any) {
                     showToast(`操作失败: ${err.message || '网络错误'}`, 'error');
                   }
