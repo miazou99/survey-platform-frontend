@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import UserStatsCard from '../../components/UserStatsCard/UserStatsCard';
-import { getUserStats, getValidUsers, getValidUsersWithProfile, getPendingUserList } from '../../services/userService';
+import { getUserStats, getValidUsers, getValidUsersWithProfile, getPendingUserList, getAllFollowedUserList } from '../../services/userService';
 import { projectApi } from '../../services/api';
 
 export default function Overview() {
@@ -335,6 +335,35 @@ export default function Overview() {
     }
   };
 
+  // 导出全部关注用户（公众号当前所有处于关注状态的用户，仅 openid）
+  const handleExportAllFollowedUsers = async () => {
+    try {
+      const followedOpenids = await getAllFollowedUserList();
+
+      if (followedOpenids.length === 0) {
+        showToast('暂无关注用户数据', 'warning');
+        return;
+      }
+
+      if (followedOpenids.length > 10000) {
+        if (!await showConfirm(`导出数据量较大（${followedOpenids.length}条），建议分批导出。\n\n确定继续导出吗？`)) {
+          return;
+        }
+      }
+
+      const data = followedOpenids.slice(0, 10000).map(openid => ({ openid }));
+      const filename = `全部关注用户_openid_${data.length}条_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '全部关注用户');
+      XLSX.writeFile(wb, filename);
+    } catch (error) {
+      console.error('导出全部关注用户失败:', error);
+      showToast('导出失败，请稍后重试', 'error');
+    }
+  };
+
   return (
     <div className="p-8 animate-fade-in">
       <div className="mb-8">
@@ -379,6 +408,13 @@ export default function Overview() {
             >
               <Download className="w-3 h-3" />
               导出待转化用户
+            </button>
+            <button
+              onClick={handleExportAllFollowedUsers}
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-1"
+            >
+              <Download className="w-3 h-3" />
+              导出全部关注用户
             </button>
           </div>
         </div>

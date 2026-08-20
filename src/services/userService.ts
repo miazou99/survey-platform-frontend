@@ -194,6 +194,20 @@ export async function getPendingUserList(): Promise<string[]> {
 }
 
 /**
+ * 获取全部关注用户 openid 列表（公众号当前所有处于关注状态的用户）
+ * 用于导出功能
+ */
+export async function getAllFollowedUserList(): Promise<string[]> {
+  try {
+    const response = await userApi.getFollowedList();
+    return response.data || [];
+  } catch (error) {
+    console.error('获取全部关注用户列表失败:', error);
+    return [];
+  }
+}
+
+/**
  * 获取用户统计数据
  */
 export async function getUserStats(): Promise<{

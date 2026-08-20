@@ -319,6 +319,10 @@ export const userApi = {
   getPendingList: () =>
     api<{ data: string[]; total: number }>('/users/pending/list'),
 
+  // 获取全部关注用户 openid 列表（公众号当前所有处于关注状态的用户）
+  getFollowedList: () =>
+    api<{ data: string[]; total: number }>('/users/followed/list'),
+
   // 导入CSV文件
   importCsv: async (file: File): Promise<{ created: number; updated: number; errors: number; message: string }> => {
     const formData = new FormData();
